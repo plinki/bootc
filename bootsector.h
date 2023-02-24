@@ -34,7 +34,7 @@ struct Mbr {
 };
 // --
 
-struct Fat32 {
+typedef struct Fat32 {
     uint32_t BPB_FATSz32;
     uint16_t BPB_ExtFlags;
     uint8_t BPB_FSVer[2];
@@ -49,7 +49,7 @@ struct Fat32 {
     uint8_t BS_VolLab[11];
     uint8_t BS_FilSysType[8];
     uint8_t boot_program[420];
-};
+} Fat32;
 
 struct Fat12_16 {
     uint8_t BS_DrvNum;
@@ -61,7 +61,7 @@ struct Fat12_16 {
     uint8_t boot_program[448];
 };
 
-struct PbrFat {
+typedef struct PbrFat {
     uint8_t BS_jmpBoot[3];
     uint8_t BS_OEMName[8];
     uint16_t BPB_BytsPerSec;
@@ -83,7 +83,7 @@ struct PbrFat {
     uint8_t last_signature[2];
 
     const int* (*determine_fat_type)();
-};
+} PbrFat;
 
 struct BootSector {
     uint8_t data[512];

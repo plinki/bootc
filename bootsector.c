@@ -6,7 +6,7 @@
 
 #define BOOT_SECTOR_SIZE 512
 
-const void BootSector_init(BootSector* boot_sector, const uint8_t data[512]) {
+void BootSector_init(BootSector* boot_sector, const uint8_t data[512]) {
     for (int i = 0; i < 512; i++) {
         boot_sector->data[i] = data[i];
     }

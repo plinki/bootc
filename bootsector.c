@@ -36,11 +36,13 @@ BootSector* make_bs(const uint8_t* data, enum Type type) {
             bs = (BootSector*) mbr;
             bs->Mbr_bs = mbr;
             break;
-        case PBR_FAT:
-            struct PbrFat* pbrFat = (struct PbrFat*) malloc(sizeof(struct PbrFat));
+        }
+        case PBR_FAT: {
+            PbrFat* pbrFat = (struct PbrFat*) malloc(sizeof(struct PbrFat));
             memcpy(pbrFat, data, sizeof(struct PbrFat));
             bs = (BootSector*) pbrFat;
             *(bs->Pbr_bs) = *pbrFat;
+            break;
         }
         default:
             bs = (BootSector*) malloc(sizeof(BootSector));

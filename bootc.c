@@ -2,6 +2,8 @@
 #include "show.h"
 #include "bootsector.h"
 
+#define SECTOR_SIZE 512
+
 int main() {
     // debug
 
@@ -32,14 +34,9 @@ int main() {
     };
 
 
-    printf("%02x%02x\n", bs_input[0], bs_input[111]);
-    if (sizeof(bs_input) != 512) {
-        printf("%s\n", "Size of input must be 512 bytes");
-    }
+    // printf("%02x%02x\n", bs_input[0], bs_input[111]);
 
     BootSector bs_type;
     BootSector_init(&bs_type, bs_input);
-
-    printf("%.*s\n", (int)sizeof(bs_input), bs_input);
 }
 

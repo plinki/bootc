@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include "read.h"
 #include "show.h"
 #include "bootsector.h"
 

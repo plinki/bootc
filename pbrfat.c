@@ -70,3 +70,26 @@ void PbrFat_init(PbrFat* fat, const uint8_t data[512]) {
     data_ = readTrait(fat->last_signature, fat->last_signature, &(data_));
 }
 
+int determine_fat_type(PbrFat* fat) {
+    size_t root_dir_sectors =
+        (fat->BPB_RootEntCnt * 32 + fat->BPB_BytsPerSec - 1) / fat->BPB_BytsPerSec;
+
+    const size_t fat_size =
+        fat->BPB_FATSz16 != 0 ? fat->BPB_FATSz16 : fat->fat32.BPB_FATSz32;
+
+    const size_t total_sectors =
+        fat->BPB_TotSec16 != 0 ? fat->BPB_TotSec16 : fat->BPB_TotSec32;
+
+    const size_t data_sectors =
+        total_sectors - (fat->BPB_RsvdSecCnt + fat->BPB_NumFATs * fat_size + root_dir_sectors);
+
+    const size_t cluster_amount = data_sectors / fat->BPB_SecPerClus;
+
+    const int fat_type =
+        cluster_amount < 4085 ? 12
+        : cluster_amount < 65525 ? 16
+        : 32;
+
+    return fat_type;
+}
+

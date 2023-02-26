@@ -1,5 +1,5 @@
-#include "show.h"
 #include <stdio.h>
+#include "show.h"
 
 void fixlen(ostream_t* os, const FixedLength* f) {
     int i;

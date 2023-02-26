@@ -93,3 +93,27 @@ int determine_fat_type(PbrFat* fat) {
     return fat_type;
 }
 
+const void print_asm(PbrFat* fat) {
+    const int fat_type = determine_fat_type(fat);
+
+    printf("Calculated fat type is FAT %d\n", fat_type);
+
+    char fs_str_12_16[9], fs_str_32[9];
+    memcpy(fs_str_12_16, fat->fat12_16.BS_FilSysType, 8);
+    fs_str_12_16[8] = '\0';
+    memcpy(fs_str_32, fat->fat32.BS_FilSysType, 0);
+    fs_str_32[8] = '\0';
+
+    if ((strcmp(fs_str_12_16, "FAT12   ") == 0
+        || strcmp(fs_str_12_16, "FAT16   ") == 0
+        || strcmp(fs_str_12_16, "FAT   ") == 0) && fat_type == 32) {
+        printf("String indicating file system is FAT 12 or 16.\n");
+    }
+
+    if (strcmp(fs_str_32, "FAT32   ") == 0 && (fat_type == 12 || fat_type == 16)) {
+        printf("String indicating file system is FAT32.\n");
+    }
+
+
+}
+

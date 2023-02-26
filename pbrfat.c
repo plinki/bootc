@@ -2,6 +2,7 @@
 #include "read.h"
 #include "bootsector.h"
 
+int determine_fat_type(PbrFat* fat);
 const char dbwd_table[4] = {'b', 'w', 0, 'd'};
 
 // Check if writing to memory exceeds limit. Otherwise generate instruction to write using either byte word or double word
@@ -70,6 +71,75 @@ void PbrFat_init(PbrFat* fat, const uint8_t data[512]) {
     data_ = readTrait(fat->last_signature, fat->last_signature, &(data_));
 }
 
+void print_info(PbrFat * fat) {
+    const int fat_type = determine_fat_type(fat);
+
+    printf("Calculated fat type is FAT %d\n", fat_type);
+
+    char fs_str_12_16[9], fs_str_32[9];
+    memcpy(fs_str_12_16, fat -> fat12_16.BS_FilSysType, 8);
+    fs_str_12_16[8] = '\0';
+    memcpy(fs_str_32, fat -> fat32.BS_FilSysType, 0);
+    fs_str_32[8] = '\0';
+
+    if ((strcmp(fs_str_12_16, "FAT12   ") == 0 ||
+            strcmp(fs_str_12_16, "FAT16   ") == 0 ||
+            strcmp(fs_str_12_16, "FAT   ") == 0) && fat_type == 32) {
+        printf("String indicating file system is FAT 12 or 16.\n");
+    }
+
+    if (strcmp(fs_str_32, "FAT32   ") == 0 && (fat_type == 12 || fat_type == 16)) {
+        printf("String indicating file system is FAT32.\n");
+    }
+
+    printf("%-20s", "BS_jmpBoot:");
+    for(size_t i = 0; i < sizeof(fat->BS_jmpBoot); i++) {
+        printf("%02x ", fat->BS_jmpBoot[i]);
+    }
+    printf("\n");
+
+    printf("%-20s", "BS_OEMName:");
+    for (int i = 0; i < 8; i++) {
+        printf("%c", fat->BS_OEMName[i]);
+    }
+    printf("\n");
+
+    printf("%-20s%u\n", "BPB_BytsPerSec:", fat->BPB_BytsPerSec);
+    printf("%-20s%u\n", "BPB_SecPerClus:", fat->BPB_SecPerClus);
+    printf("%-20s%u\n", "BPB_RsvdSecCnt:", fat->BPB_RsvdSecCnt);
+    printf("%-20s%u\n", "BPB_NumFATs:", fat->BPB_NumFATs);
+    printf("%-20s%u\n", "BPB_RootEntCnt:", fat->BPB_RootEntCnt);
+    printf("%-20s%u\n", "BPB_TotSec16:", fat->BPB_TotSec16);
+    printf("%-20s%02x\n", "BPB_Media:", (unsigned int) fat->BPB_Media);
+    printf("%-20s%u\n", "BPB_FATSz16:", fat->BPB_FATSz16);
+    printf("%-20s%u\n", "BPB_SecPerTrk:", fat->BPB_SecPerTrk);
+    printf("%-20s%u\n", "BPB_NumHeads:", fat->BPB_NumHeads);
+    printf("%-20s%u\n", "BPB_HiddSec:", fat->BPB_HiddSec);
+    printf("%-20s%u\n", "BPB_TotSec32:", fat->BPB_TotSec32);
+
+    if (fat_type == 12 || fat_type == 16) {
+        printf("%-20s%u\n", "BS_DrvNum:", fat->fat12_16.BS_DrvNum);
+        printf("%-20s%02x\n", "BS_Reserved1:", fat->fat12_16.BS_Reserved1);
+        printf("%-20s%02x\n", "BS_BootSig:", fat->fat12_16.BS_BootSig);
+        printf("%-20s%08x\n", "BS_VolID:", fat->fat12_16.BS_VolID);
+        printf("%-20s%s\n", "BS_VolLab:", fat->fat12_16.BS_VolLab);
+        printf("%-20s%s\n", "BS_FilSysType:", fs_str_12_16);
+    } else {
+        printf("%-20s%08x\n", "BPB_FATSz32:", fat->fat32.BPB_FATSz32);
+        printf("%-20s%04x\n", "BPB_ExtFlag:", fat->fat32.BPB_ExtFlags);
+        printf("%-20s%d.%d\n", "BPB_FSVer:", (int)fat->fat32.BPB_FSVer[1], (int)fat->fat32.BPB_FSVer[0]);
+        printf("%-20s%08x\n", "BPB_RootClus:", fat->fat32.BPB_RootClus);
+        printf("%-20s%04x\n", "BPB_FSInfo:", fat->fat32.BPB_FSInfo);
+        printf("%-20s%04x\n", "BPB_BkBootSec:", fat->fat32.BPB_BkBootSec);
+        printf("%-20s%02x\n", "BS_DrvNum:", fat->fat32.BS_DrvNum);
+        printf("%-20s%02x\n", "BS_Reserved1:", fat->fat32.BS_Reserved1);
+        printf("%-20s%02x\n", "BS_BootSig:", fat->fat32.BS_BootSig);
+        printf("%-20s%08x\n", "BS_VolID:", fat->fat32.BS_VolID);
+        printf("%-20s%s\n", "BS_VolLab:", (const char*)fat->fat32.BS_VolLab);
+        printf("%-20s%s\n", "BS_FilSysType:", fs_str_32);
+    }
+}
+
 int determine_fat_type(PbrFat* fat) {
     size_t root_dir_sectors =
         (fat->BPB_RootEntCnt * 32 + fat->BPB_BytsPerSec - 1) / fat->BPB_BytsPerSec;
@@ -91,29 +161,5 @@ int determine_fat_type(PbrFat* fat) {
         : 32;
 
     return fat_type;
-}
-
-const void print_asm(PbrFat* fat) {
-    const int fat_type = determine_fat_type(fat);
-
-    printf("Calculated fat type is FAT %d\n", fat_type);
-
-    char fs_str_12_16[9], fs_str_32[9];
-    memcpy(fs_str_12_16, fat->fat12_16.BS_FilSysType, 8);
-    fs_str_12_16[8] = '\0';
-    memcpy(fs_str_32, fat->fat32.BS_FilSysType, 0);
-    fs_str_32[8] = '\0';
-
-    if ((strcmp(fs_str_12_16, "FAT12   ") == 0
-        || strcmp(fs_str_12_16, "FAT16   ") == 0
-        || strcmp(fs_str_12_16, "FAT   ") == 0) && fat_type == 32) {
-        printf("String indicating file system is FAT 12 or 16.\n");
-    }
-
-    if (strcmp(fs_str_32, "FAT32   ") == 0 && (fat_type == 12 || fat_type == 16)) {
-        printf("String indicating file system is FAT32.\n");
-    }
-
-
 }
 

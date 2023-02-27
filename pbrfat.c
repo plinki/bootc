@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include "read.h"
 #include "bootsector.h"
 
@@ -71,7 +72,7 @@ void PbrFat_init(PbrFat* fat, const uint8_t data[512]) {
     data_ = readTrait(fat->last_signature, fat->last_signature, &(data_));
 }
 
-void print_info(PbrFat * fat) {
+void print_info(PbrFat* fat) {
     const int fat_type = determine_fat_type(fat);
 
     printf("Calculated fat type is FAT %d\n", fat_type);
@@ -138,6 +139,42 @@ void print_info(PbrFat * fat) {
         printf("%-20s%s\n", "BS_VolLab:", (const char*)fat->fat32.BS_VolLab);
         printf("%-20s%s\n", "BS_FilSysType:", fs_str_32);
     }
+}
+
+void print_asm(const char* bs_input, BootSector* bs) {
+    const int fat_type = determine_fat_type(bs->Pbr_bs);
+
+    unsigned int skipStart = 0, skipBytes = 0;
+
+    if (bs->Pbr_bs->BS_jmpBoot[0] == 0xeb) {
+        skipBytes = bs->Pbr_bs->BS_jmpBoot[1] - 1;
+    } else if (bs->Pbr_bs->BS_jmpBoot[0] == 0xe9) {
+        skipBytes = bs->Pbr_bs->BS_jmpBoot[1]
+            | (unsigned int)(bs->Pbr_bs->BS_jmpBoot[2] << 8);
+    }
+
+    FILE* temp = tmpfile();
+    size_t bs_size = strlen((const char *)bs->data);
+    fwrite(bs->data, sizeof(char), bs_size, temp);
+    fflush(temp);
+    fclose(temp);
+
+    const char* arg0 = "-b";
+    const char* arg1 = "16";
+    const char* arg2 = "-k";
+    char arg3[50];
+    sprintf(arg3, "3,%d", skipBytes);
+    const char* arg4 = "-k";
+    const char* arg5 = "510,2";
+
+    char cmd[1024];
+    sprintf(cmd, "ndisasm %s %s %s %s %s %s", arg0, arg1, arg2, arg3, arg4, arg5);
+
+    int status = system(cmd);
+    if (status != 0) {
+        // catch something
+    }
+
 }
 
 int determine_fat_type(PbrFat* fat) {

@@ -88,6 +88,7 @@ typedef struct PbrFat {
 struct BootSector {
     uint8_t data[512];
     const uint8_t* (*get_data)(const struct BootSector* boot_sector);
+    enum Type type;
     struct Mbr* Mbr_bs;
     struct PbrFat* Pbr_bs;
 

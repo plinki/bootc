@@ -1,10 +1,22 @@
 #include <stdio.h>
+#include <stdint.h>
+#include <regex.h>
 #include <stdlib.h>
 #include "read.h"
 #include "bootsector.h"
 
+#define MAX_LINE_LENGTH 1024
+
 int determine_fat_type(PbrFat* fat);
 const char dbwd_table[4] = {'b', 'w', 0, 'd'};
+
+char *strndup(const char *s, size_t n) {
+    char *p = strncpy(malloc(n + 1), s, n);
+    if (p != NULL) {
+        p[n] = '\0';
+    }
+    return p;
+}
 
 // Check if writing to memory exceeds limit. Otherwise generate instruction to write using either byte word or double word
 uint32_t dbwd(FILE* bs_data, uint32_t current_address, uint32_t limit_address, uint32_t value) {
@@ -141,10 +153,20 @@ void print_info(PbrFat* fat) {
     }
 }
 
-void print_asm(const char* bs_input, BootSector* bs) {
+void print_asm(BootSector* bs) {
     const int fat_type = determine_fat_type(bs->Pbr_bs);
 
-    unsigned int skipStart = 0, skipBytes = 0;
+    unsigned int skipBytes = 0;
+
+    struct instruction {
+        uint32_t address;
+        char *disassembly;
+    };
+
+    struct instruction_pair {
+        uint32_t address;
+        struct instruction inst;
+    };
 
     if (bs->Pbr_bs->BS_jmpBoot[0] == 0xeb) {
         skipBytes = bs->Pbr_bs->BS_jmpBoot[1] - 1;
@@ -172,9 +194,54 @@ void print_asm(const char* bs_input, BootSector* bs) {
 
     int status = system(cmd);
     if (status != 0) {
-        // catch something
-    }
+        printf("%d\n", status);
+    } else {
+        struct instruction_pair *instructions = NULL;
+        int num_instructions = 0;
+        int skip_index = -1;
+        uint32_t zero_region_address = UINT32_MAX;
 
+        const char* disasm_pattern = "^([0-9A-Fa-f]+)\\s+([0-9A-Fa-f]+)\\s+(.+)$";
+        const char* skip_pattern = "^[0-9A-Fa-f]+\\s+skipping.*$";
+
+        char line[MAX_LINE_LENGTH];
+        while (fgets(line, MAX_LINE_LENGTH, stdin) != NULL) {
+            regex_t regex_disasm, regex_skip;
+            regmatch_t matches[4];
+            int reti_disasm = regcomp(&regex_disasm, disasm_pattern, 0);
+            int reti_skip = regcomp(&regex_skip, skip_pattern, 0);
+            if (reti_disasm != 0 || reti_skip != 0) {
+                //err
+            }
+
+            if (regexec(&regex_disasm, line, 4, matches, 0) == 0) {
+                uint32_t address = (uint32_t)strtoul(&line[matches[1].rm_so], NULL, 16);
+
+                if (strncmp(&line[matches[2].rm_so], "0000", 4) == 0) {
+                    if (zero_region_address == UINT32_MAX) {
+                        zero_region_address = address;
+                    }
+                } else {
+                    zero_region_address = UINT32_MAX;
+                    char* disassembly = strndup(&line[matches[3].rm_so], matches[3].rm_eo - matches[3].rm_so);
+                    struct instruction inst = { address, disassembly };
+                    struct instruction_pair pair = { address, inst };
+                    num_instructions++;
+                    instructions = realloc(instructions, num_instructions * sizeof(struct instruction_pair));
+                    instructions[num_instructions-1] = pair;
+                }
+            } else if (regexec(&regex_skip, line, 0, NULL, 0) == 0) {
+                if (skip_index == -1) {
+                    skip_index = num_instructions;
+                }
+            }
+        }
+        /*
+        ....
+        regfree(&regex_disasm);
+        regfree(&regex_skip);
+        */
+    }
 }
 
 int determine_fat_type(PbrFat* fat) {

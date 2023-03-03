@@ -11,7 +11,6 @@ typedef struct TemporaryFile {
 
 void generate_temp_path(char* path);
 TemporaryFile* create_tempfile();
-void destroy_tempfile(TemporaryFile* tf);
 const char* tempfile_path(TemporaryFile* tf);
 
 #endif

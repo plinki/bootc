@@ -24,14 +24,6 @@ TemporaryFile* create_tempfile() {
     return tf;
 }
 
-void destroy_tempfile(TemporaryFile* tf) {
-    if (tf) {
-        close(tf->fd);
-        unlink(tf->path);
-        free(tf);
-    }
-}
-
 const char* tempfile_path(TemporaryFile* tf) {
     return tf ? tf->path : NULL;
 }

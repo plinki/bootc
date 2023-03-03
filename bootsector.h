@@ -22,11 +22,11 @@ struct Partition {
     uint32_t size;
 };
 
-struct Mbr {
+typedef struct Mbr {
     uint8_t boot_code[446];
     struct Partition part_table[4];
     uint8_t last_signature[2];
-};
+} Mbr;
 // --
 
 typedef struct Fat32 {
@@ -91,5 +91,11 @@ enum Type infer(const uint8_t* data);
 BootSector* make_bs(const uint8_t* data, enum Type type);
 void print_asm(BootSector* bs);
 void print_info(PbrFat* fat);
+
+
+unsigned int cylinder(const uint8_t chs[3]);
+unsigned int head(const uint8_t chs[3]);
+unsigned int sector(const uint8_t chs[3]);
+
 #endif
 

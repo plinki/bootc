@@ -1,5 +1,6 @@
 #include "read.h"
 #include <stdint.h>
+#include <stdio.h>
 
 const uint8_t* readTrait(const uint8_t* N, uint8_t* v, const uint8_t** data)
 {

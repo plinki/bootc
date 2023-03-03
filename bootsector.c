@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "bootsector.h"
+#include "pbrfat.h"
 
 #define BOOT_SECTOR_SIZE 512
 
@@ -31,15 +32,16 @@ BootSector* make_bs(const uint8_t* data, enum Type type) {
     BootSector* bs;
     switch(type) {
         case MBR: {
-            struct Mbr* mbr = (struct Mbr*) malloc(sizeof(struct Mbr));
-            memcpy(mbr, data, sizeof(struct Mbr));
-            bs = (BootSector*) mbr;
-            bs->Mbr_bs = mbr;
+            bs = (BootSector*) malloc(sizeof(BootSector));
+            // init?
+            bs->Mbr_bs = (struct Mbr*) malloc(sizeof(struct Mbr));
+            memcpy(bs->Mbr_bs, data, sizeof(struct Mbr));
             break;
         }
         case PBR_FAT: {
             bs = (BootSector*) malloc(sizeof(BootSector));
             bs->Pbr_bs = (struct PbrFat*) malloc(sizeof(struct PbrFat));
+            PbrFat_init(bs->Pbr_bs, data);
             memcpy(bs->Pbr_bs, data, sizeof(struct PbrFat));
             break;
         }

@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include "show.h"
+#include <string.h>
 #include "bootsector.h"
 
 #define SECTOR_SIZE 512
@@ -56,6 +56,8 @@ int main(int argc, char* argv[]) {
             bs->type = (bs_type == UNKNOWN) ? infer(bs_buf) : bs_type;
 
             if (show_asm) {
+               print_asm(bs);
+            } else {
                 print_info(bs->Pbr_bs);
             }
         }

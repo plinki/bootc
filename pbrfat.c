@@ -179,7 +179,7 @@ void print_asm(BootSector* bs) {
     size_t bs_size = strlen((const char *)bs->data);
     fwrite(bs->data, sizeof(char), bs_size, temp);
     fflush(temp);
-    fclose(temp);
+    // fclose(temp);
 
     const char* arg0 = "-b";
     const char* arg1 = "16";
@@ -236,11 +236,32 @@ void print_asm(BootSector* bs) {
                 }
             }
         }
-        /*
-        ....
-        regfree(&regex_disasm);
-        regfree(&regex_skip);
-        */
+
+        for (int i = 0; i < num_instructions; ++i) {
+            if (i == skip_index) {
+                uint32_t current = (i > 0) ? instructions[i - 1].address : 0;
+                const uint32_t lim = instructions[i].address;
+
+                current = db_str(temp, current, lim, bs->Pbr_bs->BS_OEMName, 8);
+                current = dbwd(temp, current, lim, bs->Pbr_bs->BPB_BytsPerSec);
+                current = dbwd(temp, current, lim, bs->Pbr_bs->BPB_SecPerClus);
+                current = dbwd(temp, current, lim, bs->Pbr_bs->BPB_RsvdSecCnt);
+                current = dbwd(temp, current, lim, bs->Pbr_bs->BPB_NumFATs);
+                current = dbwd(temp, current, lim, bs->Pbr_bs->BPB_RootEntCnt);
+                current = dbwd(temp, current, lim, bs->Pbr_bs->BPB_TotSec16);
+                current = dbwd(temp, current, lim, bs->Pbr_bs->BPB_Media);
+                current = dbwd(temp, current, lim, bs->Pbr_bs->BPB_FATSz16);
+                current = dbwd(temp, current, lim, bs->Pbr_bs->BPB_SecPerTrk);
+                current = dbwd(temp, current, lim, bs->Pbr_bs->BPB_NumHeads);
+                current = dbwd(temp, current, lim, bs->Pbr_bs->BPB_HiddSec);
+                current = dbwd(temp, current, lim, bs->Pbr_bs->BPB_TotSec32);
+            }
+        }
+     /*
+     ....
+     regfree(&regex_disasm);
+     regfree(&regex_skip);
+     */
     }
 }
 

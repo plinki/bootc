@@ -2,8 +2,10 @@
 #include <stdint.h>
 #include <regex.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include "read.h"
 #include "bootsector.h"
+#include "tempfile.h"
 
 #define MAX_LINE_LENGTH 1024
 
@@ -160,7 +162,7 @@ void print_asm(BootSector* bs) {
 
     struct instruction {
         uint32_t address;
-        char *disassembly;
+        char* disassembly;
     };
 
     struct instruction_pair {
@@ -175,10 +177,12 @@ void print_asm(BootSector* bs) {
             | (unsigned int)(bs->Pbr_bs->BS_jmpBoot[2] << 8);
     }
 
-    FILE* temp = tmpfile();
+    TemporaryFile* temp = create_tempfile();
+    const char* path = tempfile_path(temp);
     size_t bs_size = strlen((const char *)bs->data);
-    fwrite(bs->data, sizeof(char), bs_size, temp);
-    fflush(temp);
+    write(temp->fd, bs->data, bs_size);
+    fsync(temp->fd);
+    lseek(temp->fd, 0, SEEK_SET);
     // fclose(temp);
 
     const char* arg0 = "-b";
@@ -188,10 +192,10 @@ void print_asm(BootSector* bs) {
     sprintf(arg3, "3,%d", skipBytes);
     const char* arg4 = "-k";
     const char* arg5 = "510,2";
+    const char* arg6 = path;
 
     char cmd[1024];
-    sprintf(cmd, "ndisasm %s %s %s %s %s %s", arg0, arg1, arg2, arg3, arg4, arg5);
-
+    sprintf(cmd, "ndisasm %s %s %s %s %s %s %s", arg0, arg1, arg2, arg3, arg4, arg5, arg6);
     int status = system(cmd);
     if (status != 0) {
         printf("%d\n", status);
@@ -205,11 +209,14 @@ void print_asm(BootSector* bs) {
         const char* skip_pattern = "^[0-9A-Fa-f]+\\s+skipping.*$";
 
         char line[MAX_LINE_LENGTH];
-        while (fgets(line, MAX_LINE_LENGTH, stdin) != NULL) {
+        ssize_t bytes_read = read(temp->fd, line, MAX_LINE_LENGTH);
+        while ((bytes_read = read(temp->fd, line, MAX_LINE_LENGTH)) > 0) {
             regex_t regex_disasm, regex_skip;
             regmatch_t matches[4];
             int reti_disasm = regcomp(&regex_disasm, disasm_pattern, 0);
             int reti_skip = regcomp(&regex_skip, skip_pattern, 0);
+            regfree(&regex_disasm);
+            regfree(&regex_skip);
             if (reti_disasm != 0 || reti_skip != 0) {
                 //err
             }
@@ -241,27 +248,68 @@ void print_asm(BootSector* bs) {
             if (i == skip_index) {
                 uint32_t current = (i > 0) ? instructions[i - 1].address : 0;
                 const uint32_t lim = instructions[i].address;
+                FILE* temp_file = fdopen(temp->fd, "r");
 
-                current = db_str(temp, current, lim, bs->Pbr_bs->BS_OEMName, 8);
-                current = dbwd(temp, current, lim, bs->Pbr_bs->BPB_BytsPerSec);
-                current = dbwd(temp, current, lim, bs->Pbr_bs->BPB_SecPerClus);
-                current = dbwd(temp, current, lim, bs->Pbr_bs->BPB_RsvdSecCnt);
-                current = dbwd(temp, current, lim, bs->Pbr_bs->BPB_NumFATs);
-                current = dbwd(temp, current, lim, bs->Pbr_bs->BPB_RootEntCnt);
-                current = dbwd(temp, current, lim, bs->Pbr_bs->BPB_TotSec16);
-                current = dbwd(temp, current, lim, bs->Pbr_bs->BPB_Media);
-                current = dbwd(temp, current, lim, bs->Pbr_bs->BPB_FATSz16);
-                current = dbwd(temp, current, lim, bs->Pbr_bs->BPB_SecPerTrk);
-                current = dbwd(temp, current, lim, bs->Pbr_bs->BPB_NumHeads);
-                current = dbwd(temp, current, lim, bs->Pbr_bs->BPB_HiddSec);
-                current = dbwd(temp, current, lim, bs->Pbr_bs->BPB_TotSec32);
+                current = db_str(temp_file, current, lim, bs->Pbr_bs->BS_OEMName, 8);
+                current = dbwd(temp_file, current, lim, bs->Pbr_bs->BPB_BytsPerSec);
+                current = dbwd(temp_file, current, lim, bs->Pbr_bs->BPB_SecPerClus);
+                current = dbwd(temp_file, current, lim, bs->Pbr_bs->BPB_RsvdSecCnt);
+                current = dbwd(temp_file, current, lim, bs->Pbr_bs->BPB_NumFATs);
+                current = dbwd(temp_file, current, lim, bs->Pbr_bs->BPB_RootEntCnt);
+                current = dbwd(temp_file, current, lim, bs->Pbr_bs->BPB_TotSec16);
+                current = dbwd(temp_file, current, lim, bs->Pbr_bs->BPB_Media);
+                current = dbwd(temp_file, current, lim, bs->Pbr_bs->BPB_FATSz16);
+                current = dbwd(temp_file, current, lim, bs->Pbr_bs->BPB_SecPerTrk);
+                current = dbwd(temp_file, current, lim, bs->Pbr_bs->BPB_NumHeads);
+                current = dbwd(temp_file, current, lim, bs->Pbr_bs->BPB_HiddSec);
+                current = dbwd(temp_file, current, lim, bs->Pbr_bs->BPB_TotSec32);
+
+                if (fat_type == 12 || fat_type == 16) {
+                    current = dbwd(temp_file, current, lim, bs->Pbr_bs->fat12_16.BS_DrvNum);
+                    current = dbwd(temp_file, current, lim, bs->Pbr_bs->fat12_16.BS_Reserved1);
+                    current = dbwd(temp_file, current, lim, bs->Pbr_bs->fat12_16.BS_BootSig);
+                    current = dbwd(temp_file, current, lim, bs->Pbr_bs->fat12_16.BS_VolID);
+                    current = db_str(temp_file, current, lim, bs->Pbr_bs->fat12_16.BS_VolLab, 11);
+                    current = db_str(temp_file, current, lim, bs->Pbr_bs->fat12_16.BS_FilSysType, 8);
+                } else {
+                    current = dbwd(temp_file, current, lim, bs->Pbr_bs->fat32.BPB_FATSz32);
+                    current = dbwd(temp_file, current, lim, bs->Pbr_bs->fat32.BPB_ExtFlags);
+                    current = dbwd(temp_file, current, lim, *bs->Pbr_bs->fat32.BPB_FSVer);
+                    current = dbwd(temp_file, current, lim, bs->Pbr_bs->fat32.BPB_RootClus);
+                    current = dbwd(temp_file, current, lim, bs->Pbr_bs->fat32.BPB_FSInfo);
+                    current = dbwd(temp_file, current, lim, bs->Pbr_bs->fat32.BPB_BkBootSec);
+                    current = dbwd(temp_file, current, lim, *bs->Pbr_bs->fat32.BPB_Reserved);
+                    current = dbwd(temp_file, current, lim, bs->Pbr_bs->fat32.BS_DrvNum);
+                    current = dbwd(temp_file, current, lim, bs->Pbr_bs->fat32.BS_Reserved1);
+                    current = dbwd(temp_file, current, lim, bs->Pbr_bs->fat32.BS_BootSig);
+                    current = dbwd(temp_file, current, lim, bs->Pbr_bs->fat32.BS_VolID);
+                    current = db_str(temp_file, current, lim, bs->Pbr_bs->fat32.BS_VolLab, 11);
+                    current = db_str(temp_file, current, lim, bs->Pbr_bs->fat32.BS_FilSysType, 8);
+                }
+
+                fclose(temp_file);
+
+                if (current < lim) {
+                    printf("    times 0x%02x - ($ - $$) db 0\n", lim);
+                }
+                
+                if (i == 0) {
+                    if (bs->Pbr_bs->BS_jmpBoot[0] == 0xeb) {
+                        printf("    jmp short entry\n");
+                    } else {
+                        printf("    jmp near entry\n");
+                    }
+                } else {
+                    printf("    %08x %s\n", instructions[i].inst.address, instructions[i].inst.disassembly); 
+                }
             }
+
+            if (zero_region_address != UINT32_MAX) {
+                printf("    times 0x1fe - ($ - $$) db 0\n");
+            }
+
+            printf("    db 0x55, 0xaa\n");
         }
-     /*
-     ....
-     regfree(&regex_disasm);
-     regfree(&regex_skip);
-     */
     }
 }
 

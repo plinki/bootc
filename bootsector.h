@@ -89,8 +89,10 @@ struct BootSector {
 void BootSector_init(BootSector* boot_sector, const uint8_t data[512]);
 enum Type infer(const uint8_t* data);
 BootSector* make_bs(const uint8_t* data, enum Type type);
-void print_asm(BootSector* bs);
-void print_info(PbrFat* fat);
+void print_pbr_asm(BootSector* bs);
+void print_pbr_info(PbrFat* fat);
+void print_mbr_asm(BootSector* bs);
+void print_mbr_info(Mbr* fat);
 
 
 unsigned int cylinder(const uint8_t chs[3]);

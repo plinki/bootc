@@ -56,9 +56,9 @@ int main(int argc, char* argv[]) {
             bs->type = (bs_type == UNKNOWN) ? infer(bs_buf) : bs_type;
 
             if (show_asm) {
-               print_asm(bs);
+                (bs->type == PBR_FAT) ? print_pbr_asm(bs) : print_mbr_asm(bs);
             } else {
-                print_info(bs->Pbr_bs);
+                (bs->type == PBR_FAT) ? print_pbr_info(bs->Pbr_bs) : print_mbr_info(bs->Mbr_bs);
             }
         }
 

@@ -86,7 +86,7 @@ void PbrFat_init(PbrFat* fat, const uint8_t data[512]) {
     data_ = readTrait(fat->last_signature, fat->last_signature, &(data_));
 }
 
-void print_info(PbrFat* fat) {
+void print_pbr_info(PbrFat* fat) {
     const int fat_type = determine_fat_type(fat);
 
     printf("Calculated fat type is FAT %d\n", fat_type);
@@ -155,7 +155,7 @@ void print_info(PbrFat* fat) {
     }
 }
 
-void print_asm(BootSector* bs) {
+void print_pbr_asm(BootSector* bs) {
     const int fat_type = determine_fat_type(bs->Pbr_bs);
 
     unsigned int skipBytes = 0;

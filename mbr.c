@@ -41,3 +41,8 @@ void print_mbr_info(Mbr* mbr) {
         printf("  Number of Sectors:   %08x\n", p->size);
     }
 }
+
+void print_mbr_asm(BootSector* bs) {
+    // 
+}
+

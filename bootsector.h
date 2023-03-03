@@ -11,11 +11,6 @@ enum Type {
     UNKNOWN
 };
 
-
-void BootSector_init(BootSector* boot_sector, const uint8_t data[512]);
-enum Type infer(const uint8_t* data);
-BootSector* make_bs(const uint8_t* data, enum Type type);
-
 // --
 
 struct Partition {
@@ -81,8 +76,6 @@ typedef struct PbrFat {
     struct Fat32 fat32;
 
     uint8_t last_signature[2];
-
-    const int* (*determine_fat_type)();
 } PbrFat;
 
 struct BootSector {
@@ -91,8 +84,12 @@ struct BootSector {
     enum Type type;
     struct Mbr* Mbr_bs;
     struct PbrFat* Pbr_bs;
-
 };
 
+void BootSector_init(BootSector* boot_sector, const uint8_t data[512]);
+enum Type infer(const uint8_t* data);
+BootSector* make_bs(const uint8_t* data, enum Type type);
+void print_asm(BootSector* bs);
+void print_info(PbrFat* fat);
 #endif
 
